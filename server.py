@@ -1,6 +1,23 @@
-from flask import Flask, render_template, request
+import sqlite3
+from flask import Flask, render_template, request, redirect, url_for
 
 app = Flask(__name__)
+
+
+def get_connection():
+    conn = sqlite3.connect('school.db')
+    return conn
+
+def create_tables():
+    db = get_connection()
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS programs 
+        (id INTEGER PRIMARY KEY AUTOINCREMENT, 
+        title TEXT, 
+        description TEXT)
+    """)
+
+create_tables()
 
 @app.route("/")
 def home():
@@ -23,3 +40,23 @@ def subscribe():
 @app.route("/subscribe/form")
 def subscribe_form():
     return render_template("subscribe.html")
+
+@app.route('/add/program/form')
+def add_program_form():
+    return render_template('add_program_form.html');
+
+@app.route('/add/program', methods=['POST'])
+def add_program():
+    db = get_connection()
+    title = request.form['title']
+    description = request.form['description']
+    db.execute("INSERT INTO programs (title, description) VALUES (?, ?)", (title, description))
+    db.commit()
+    return redirect(url_for('programs'))
+
+@app.route('/programs')
+def programs():
+    db = get_connection()
+    cursor = db.cursor()
+    result = cursor.execute("SELECT * FROM programs")
+    return render_template('programs.html', programs=result)
