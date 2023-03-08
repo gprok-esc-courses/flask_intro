@@ -1,12 +1,23 @@
 import sqlite3
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for, session, g
 
 app = Flask(__name__)
+app.secret_key = 'laksja9asd80asd09asd098asdsdkdf7763sdsds'
+app.config['SESSION_TYPE'] = 'filesystem'
 
 
 def get_connection():
     conn = sqlite3.connect('school.db')
     return conn
+
+def check_user():
+    user_id = session.get('user_id')
+    if user_id is None:
+        g.user = None
+    else:
+        db = get_connection()
+        g.user = db.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
+
 
 def create_tables():
     db = get_connection()
@@ -15,6 +26,13 @@ def create_tables():
         (id INTEGER PRIMARY KEY AUTOINCREMENT, 
         title TEXT, 
         description TEXT)
+    """)
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS users
+        (id INTEGER PRIMARY KEY AUTOINCREMENT, 
+        username TEXT,
+        password TEXT,
+        role TEXT)
     """)
 
 create_tables()
@@ -60,3 +78,47 @@ def programs():
     cursor = db.cursor()
     result = cursor.execute("SELECT * FROM programs")
     return render_template('programs.html', programs=result)
+
+@app.route('/login', methods=['POST', 'GET'])
+def login():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        db = get_connection()
+        user = db.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
+
+        error = None
+
+        if user is None:
+            error = "User does not exist"
+        elif password != user[2]: 
+            error = "Wrong credentials"
+        else:
+            session.clear()
+            session['user_id'] = user[0]
+            if user[3] == 'admin':
+                return redirect(url_for('dashboard'))
+            else:
+                return redirect(url_for('profile'))
+        print(error)
+
+    return render_template('auth/login.html')
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('home'))
+
+@app.route('/profile')
+def profile():
+    check_user()
+    if g.user is None:
+        return redirect(url_for('login'))
+    return render_template('profile.html')
+
+@app.route('/dashboard')
+def dashboard():
+    check_user()
+    if g.user is None or g.user[3] != 'admin':
+        return redirect(url_for('login'))
+    return render_template('dashboard.html')
