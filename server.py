@@ -1,5 +1,6 @@
 import sqlite3
-from flask import Flask, render_template, request, redirect, url_for, session, g
+from flask import Flask, render_template, request, redirect, url_for, session, g, send_from_directory
+from flask import jsonify
 
 app = Flask(__name__)
 app.secret_key = 'laksja9asd80asd09asd098asdsdkdf7763sdsds'
@@ -32,7 +33,9 @@ def create_tables():
         (id INTEGER PRIMARY KEY AUTOINCREMENT, 
         username TEXT,
         password TEXT,
-        role TEXT)
+        role TEXT,
+        program_id INT,
+        FOREIGN KEY (program_id) REFERENCES programs (id))
     """)
 
 create_tables()
@@ -122,3 +125,36 @@ def dashboard():
     if g.user is None or g.user[3] != 'admin':
         return redirect(url_for('login'))
     return render_template('dashboard.html')
+
+@app.route('/users/program')
+def users_program():
+    db = get_connection()
+    cursor = db.cursor()
+    result = cursor.execute("""SELECT u.id, u.username, p.title
+                            FROM users u
+                            INNER JOIN programs p ON u.program_id=p.id""")
+    return render_template('users.html', users=result)
+
+@app.route('/api/users/programs')
+def api_users_program():
+    db = get_connection()
+    cursor = db.cursor()
+    result = cursor.execute("""SELECT u.id, u.username, p.title
+                            FROM users u
+                            INNER JOIN programs p ON u.program_id=p.id""")
+    return jsonify(result.fetchall())
+
+@app.route('/images')
+def images():
+    return render_template('images.html')
+
+@app.route('/user/images')
+def user_images():
+    return render_template('protected_images.html')
+
+@app.route('/protected/<path:path>')
+def protected(path):
+    check_user()
+    if g.user is None:
+        return send_from_directory('protected', 'images/noaccess.jpg')
+    return send_from_directory('protected', path)
