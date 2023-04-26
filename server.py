@@ -1,15 +1,21 @@
 import sqlite3
 from flask import Flask, render_template, request, redirect, url_for, session, g, send_from_directory
 from flask import jsonify
+from db import get_connection
+from controllers.api_controller import api
+from controllers.page_controller import page
+from flask_jwt_extended import JWTManager
 
 app = Flask(__name__)
 app.secret_key = 'laksja9asd80asd09asd098asdsdkdf7763sdsds'
 app.config['SESSION_TYPE'] = 'filesystem'
 
+app.config['JWT_SECRET_KEY'] = "ansuas8769asd98hsaodas98duasdhajdhosahsad7asdsaoi"
+jwt = JWTManager(app)
 
-def get_connection():
-    conn = sqlite3.connect('school.db')
-    return conn
+app.register_blueprint(api)
+app.register_blueprint(page)
+
 
 def check_user():
     user_id = session.get('user_id')
@@ -40,18 +46,6 @@ def create_tables():
 
 create_tables()
 
-@app.route("/")
-def home():
-    return render_template('index.html')
-
-@app.route("/about")
-def about():
-    return render_template('about.html')
-
-
-@app.route("/account/<username>")
-def account(username=None):
-    return render_template("account.html", username=username)
 
 
 @app.route("/subscribe", methods=['POST'])
@@ -135,14 +129,6 @@ def users_program():
                             INNER JOIN programs p ON u.program_id=p.id""")
     return render_template('users.html', users=result)
 
-@app.route('/api/users/programs')
-def api_users_program():
-    db = get_connection()
-    cursor = db.cursor()
-    result = cursor.execute("""SELECT u.id, u.username, p.title
-                            FROM users u
-                            INNER JOIN programs p ON u.program_id=p.id""")
-    return jsonify(result.fetchall())
 
 @app.route('/images')
 def images():
