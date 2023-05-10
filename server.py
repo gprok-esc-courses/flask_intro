@@ -5,6 +5,8 @@ from db import get_connection
 from controllers.api_controller import api
 from controllers.page_controller import page
 from flask_jwt_extended import JWTManager
+import os
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 app.secret_key = 'laksja9asd80asd09asd098asdsdkdf7763sdsds'
@@ -104,7 +106,7 @@ def login():
 @app.route('/logout')
 def logout():
     session.clear()
-    return redirect(url_for('home'))
+    return redirect(url_for('page.home'))
 
 @app.route('/profile')
 def profile():
@@ -144,3 +146,22 @@ def protected(path):
     if g.user is None:
         return send_from_directory('protected', 'images/noaccess.jpg')
     return send_from_directory('protected', path)
+
+
+@app.route('/upload')
+def upload():
+    return render_template('upload.html')
+
+@app.route('/uploader', methods=['POST'])
+def uploader():
+    if request.method == 'POST':
+        check_user()
+        if g.user is None:
+            return "Only registered users can upload"
+        if not os.path.isdir(app.root_path + '/uploads/' + g.user[1]):
+            os.mkdir(app.root_path + '/uploads/' + g.user[1])
+        file = request.files['file']
+        if file.filename.split('.')[-1] != 'jpg':
+            return "Only jpg images allowed"
+        file.save(os.path.join(app.root_path + '/uploads/' + g.user[1] + '/', secure_filename(file.filename)))
+        return "File Uploaded"
